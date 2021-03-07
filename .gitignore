@@ -7,3 +7,4 @@
 /test/
 /accounts.json
 /truffle-config.js
+.secret.*
