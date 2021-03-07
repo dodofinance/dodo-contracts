@@ -8,12 +8,12 @@ import "./libs/SafeBEP20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import "./FarmerToken.sol";
+import "./DodoToken.sol";
 
-// MasterChef is the master of Farmer. He can make Farmer and he is a fair guy.
+// MasterChef is the master of Dodo. He can make Dodo and he is a fair guy.
 //
 // Note that it's ownable and the owner wields tremendous power. The ownership
-// will be transferred to a governance smart contract once FARM is sufficiently
+// will be transferred to a governance smart contract once DODO is sufficiently
 // distributed and the community can show to govern itself.
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
@@ -26,13 +26,13 @@ contract MasterChef is Ownable, ReentrancyGuard {
         uint256 amount;         // How many LP tokens the user has provided.
         uint256 rewardDebt;     // Reward debt. See explanation below.
         //
-        // We do some fancy math here. Basically, any point in time, the amount of FARMs
+        // We do some fancy math here. Basically, any point in time, the amount of DODOs
         // entitled to a user but is pending to be distributed is:
         //
-        //   pending reward = (user.amount * pool.accFarmerPerShare) - user.rewardDebt
+        //   pending reward = (user.amount * pool.accDodoPerShare) - user.rewardDebt
         //
         // Whenever a user deposits or withdraws LP tokens to a pool. Here's what happens:
-        //   1. The pool's `accFarmerPerShare` (and `lastRewardBlock`) gets updated.
+        //   1. The pool's `accDodoPerShare` (and `lastRewardBlock`) gets updated.
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
@@ -41,19 +41,19 @@ contract MasterChef is Ownable, ReentrancyGuard {
     // Info of each pool.
     struct PoolInfo {
         IBEP20 lpToken;           // Address of LP token contract.
-        uint256 allocPoint;       // How many allocation points assigned to this pool. FARMs to distribute per block.
-        uint256 lastRewardBlock;  // Last block number that FARMs distribution occurs.
-        uint256 accFarmerPerShare;   // Accumulated FARMs per share, times 1e12. See below.
+        uint256 allocPoint;       // How many allocation points assigned to this pool. DODOs to distribute per block.
+        uint256 lastRewardBlock;  // Last block number that DODOs distribution occurs.
+        uint256 accDodoPerShare;   // Accumulated DODOs per share, times 1e12. See below.
         uint16 depositFeeBP;      // Deposit fee in basis points
     }
 
-    // The FARM TOKEN!
-    FarmerToken public farmer;
+    // The DODO TOKEN!
+    DodoToken public dodo;
     // Dev address.
     address public devaddr;
-    // FARM tokens created per block.
-    uint256 public farmerPerBlock;
-    // Bonus muliplier for early farmer makers.
+    // DODO tokens created per block.
+    uint256 public dodoPerBlock;
+    // Bonus muliplier for early dodo makers.
     uint256 public constant BONUS_MULTIPLIER = 1;
     // Deposit Fee address
     address public feeAddress;
@@ -64,7 +64,7 @@ contract MasterChef is Ownable, ReentrancyGuard {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint = 0;
-    // The block number when FARM mining starts.
+    // The block number when DODO mining starts.
     uint256 public startBlock;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
@@ -72,19 +72,19 @@ contract MasterChef is Ownable, ReentrancyGuard {
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event SetFeeAddress(address indexed user, address indexed newAddress);
     event SetDevAddress(address indexed user, address indexed newAddress);
-    event UpdateEmissionRate(address indexed user, uint256 farmerPerBlock);
+    event UpdateEmissionRate(address indexed user, uint256 dodoPerBlock);
 
     constructor(
-        FarmerToken _farmer,
+        DodoToken _dodo,
         address _devaddr,
         address _feeAddress,
-        uint256 _farmerPerBlock,
+        uint256 _dodoPerBlock,
         uint256 _startBlock
     ) public {
-        farmer = _farmer;
+        dodo = _dodo;
         devaddr = _devaddr;
         feeAddress = _feeAddress;
-        farmerPerBlock = _farmerPerBlock;
+        dodoPerBlock = _dodoPerBlock;
         startBlock = _startBlock;
     }
 
@@ -111,12 +111,12 @@ contract MasterChef is Ownable, ReentrancyGuard {
         lpToken : _lpToken,
         allocPoint : _allocPoint,
         lastRewardBlock : lastRewardBlock,
-        accFarmerPerShare : 0,
+        accDodoPerShare : 0,
         depositFeeBP : _depositFeeBP
         }));
     }
 
-    // Update the given pool's FARM allocation point and deposit fee. Can only be called by the owner.
+    // Update the given pool's DODO allocation point and deposit fee. Can only be called by the owner.
     function set(uint256 _pid, uint256 _allocPoint, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner {
         require(_depositFeeBP <= 10000, "set: invalid deposit fee basis points");
         if (_withUpdate) {
@@ -132,18 +132,18 @@ contract MasterChef is Ownable, ReentrancyGuard {
         return _to.sub(_from).mul(BONUS_MULTIPLIER);
     }
 
-    // View function to see pending FARMs on frontend.
-    function pendingFarmer(uint256 _pid, address _user) external view returns (uint256) {
+    // View function to see pending DODOs on frontend.
+    function pendingDodo(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
-        uint256 accFarmerPerShare = pool.accFarmerPerShare;
+        uint256 accDodoPerShare = pool.accDodoPerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 farmerReward = multiplier.mul(farmerPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accFarmerPerShare = accFarmerPerShare.add(farmerReward.mul(1e12).div(lpSupply));
+            uint256 dodoReward = multiplier.mul(dodoPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            accDodoPerShare = accDodoPerShare.add(dodoReward.mul(1e12).div(lpSupply));
         }
-        return user.amount.mul(accFarmerPerShare).div(1e12).sub(user.rewardDebt);
+        return user.amount.mul(accDodoPerShare).div(1e12).sub(user.rewardDebt);
     }
 
     // Update reward variables for all pools. Be careful of gas spending!
@@ -166,22 +166,22 @@ contract MasterChef is Ownable, ReentrancyGuard {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 farmerReward = multiplier.mul(farmerPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        farmer.mint(devaddr, farmerReward.div(10));
-        farmer.mint(address(this), farmerReward);
-        pool.accFarmerPerShare = pool.accFarmerPerShare.add(farmerReward.mul(1e12).div(lpSupply));
+        uint256 dodoReward = multiplier.mul(dodoPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        dodo.mint(devaddr, dodoReward.div(10));
+        dodo.mint(address(this), dodoReward);
+        pool.accDodoPerShare = pool.accDodoPerShare.add(dodoReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens to MasterChef for FARM allocation.
+    // Deposit LP tokens to MasterChef for DODO allocation.
     function deposit(uint256 _pid, uint256 _amount) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = user.amount.mul(pool.accFarmerPerShare).div(1e12).sub(user.rewardDebt);
+            uint256 pending = user.amount.mul(pool.accDodoPerShare).div(1e12).sub(user.rewardDebt);
             if (pending > 0) {
-                safeFarmerTransfer(msg.sender, pending);
+                safeDodoTransfer(msg.sender, pending);
             }
         }
         if (_amount > 0) {
@@ -194,7 +194,7 @@ contract MasterChef is Ownable, ReentrancyGuard {
                 user.amount = user.amount.add(_amount);
             }
         }
-        user.rewardDebt = user.amount.mul(pool.accFarmerPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accDodoPerShare).div(1e12);
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -204,15 +204,15 @@ contract MasterChef is Ownable, ReentrancyGuard {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
-        uint256 pending = user.amount.mul(pool.accFarmerPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 pending = user.amount.mul(pool.accDodoPerShare).div(1e12).sub(user.rewardDebt);
         if (pending > 0) {
-            safeFarmerTransfer(msg.sender, pending);
+            safeDodoTransfer(msg.sender, pending);
         }
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
         }
-        user.rewardDebt = user.amount.mul(pool.accFarmerPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accDodoPerShare).div(1e12);
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -227,16 +227,16 @@ contract MasterChef is Ownable, ReentrancyGuard {
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
-    // Safe farmer transfer function, just in case if rounding error causes pool to not have enough FARMs.
-    function safeFarmerTransfer(address _to, uint256 _amount) internal {
-        uint256 farmerBal = farmer.balanceOf(address(this));
+    // Safe dodo transfer function, just in case if rounding error causes pool to not have enough DODOs.
+    function safeDodoTransfer(address _to, uint256 _amount) internal {
+        uint256 dodoBal = dodo.balanceOf(address(this));
         bool transferSuccess = false;
-        if (_amount > farmerBal) {
-            transferSuccess = farmer.transfer(_to, farmerBal);
+        if (_amount > dodoBal) {
+            transferSuccess = dodo.transfer(_to, dodoBal);
         } else {
-            transferSuccess = farmer.transfer(_to, _amount);
+            transferSuccess = dodo.transfer(_to, _amount);
         }
-        require(transferSuccess, "safeFarmerTransfer: transfer failed");
+        require(transferSuccess, "safeDodoTransfer: transfer failed");
     }
 
     // Update dev address by the previous dev.
@@ -253,9 +253,9 @@ contract MasterChef is Ownable, ReentrancyGuard {
     }
 
     //Pancake has to add hidden dummy pools inorder to alter the emission, here we make it simple and transparent to all.
-    function updateEmissionRate(uint256 _farmerPerBlock) public onlyOwner {
+    function updateEmissionRate(uint256 _dodoPerBlock) public onlyOwner {
         massUpdatePools();
-        farmerPerBlock = _farmerPerBlock;
-        emit UpdateEmissionRate(msg.sender, _farmerPerBlock);
+        dodoPerBlock = _dodoPerBlock;
+        emit UpdateEmissionRate(msg.sender, _dodoPerBlock);
     }
 }
